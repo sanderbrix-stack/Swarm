@@ -1,0 +1,31 @@
+SWARM – sådan lægger du spillet online som web-app
+=================================================
+
+Filerne i mappen:
+  index.html             selve spillet
+  manifest.webmanifest   fortæller telefonen at det er en app (navn, ikon, fuld skærm)
+  sw.js                  gør at spillet virker uden internet efter første besøg
+  icon-180/192/512.png   app-ikoner
+
+1) Læg det på GitHub Pages (gratis)
+   - Opret en konto på github.com
+   - Klik "+" øverst > "New repository". Kald det fx "swarm", vælg "Public", klik "Create repository"
+   - Klik "uploading an existing file" og træk ALLE filerne ind (ikke selve mappen). Klik "Commit changes"
+   - Gå til "Settings" > "Pages". Under "Branch" vælg "main" og "/ (root)", klik "Save"
+   - Vent 1-2 minutter. Adressen bliver: https://DIT-BRUGERNAVN.github.io/swarm/
+
+2) Installer på telefonen
+   - iPhone: åbn adressen i Safari > Del-knappen > "Føj til hjemmeskærm"
+   - Android: åbn adressen i Chrome > menuen (⋮) > "Installer app" / "Føj til startskærm"
+
+3) Tilt-styring
+   - Første gang du trykker "Play", spørger iPhone om adgang til bevægelse. Tryk "Tillad"
+   - Hold telefonen i den vinkel du vil spille i, når du trykker Play – den vinkel bliver "lige ud"
+
+4) Opdatering senere
+   - Upload den nye index.html til GitHub (overskriv den gamle)
+   - Ret 'swarm-v1' til 'swarm-v2' i sw.js og upload den også
+   - Luk og åbn appen et par gange, så henter den den nye version
+
+Bemærk: mønter, køb og rekord gemmes på telefonen. Sletter du appen eller Safaris
+data, starter du forfra.
