@@ -1,5 +1,5 @@
 // Offline cache. Bump VERSION whenever you upload new game files.
-const VERSION = 'swarm-v1';
+const VERSION = 'swarm-v2';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png'];
 
 self.addEventListener('install', e => {
