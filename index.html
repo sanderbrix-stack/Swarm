@@ -69,7 +69,10 @@ const TYPES = {
   pulse:  {c:'#ffd84a', n:'Shockwave', d:'blasts everything around it', g:'◎'},
   orbit:  {c:'#6dff8a', n:'Orbit',     d:'a ring of blades shields you for 8 sec', g:'✦'},
   freeze: {c:'#5ef2ff', n:'Freeze',    d:'freezes enemies – smash through them', g:'❄'},
-  spray:  {c:'#c48bff', n:'Burst',     d:'fires bouncing projectiles', g:'✺'}
+  spray:  {c:'#c48bff', n:'Burst',     d:'fires bouncing projectiles', g:'✺'},
+  blaster:{c:'#ff9f43', n:'Blaster',   d:'your arrow auto-fires for 8 sec', g:'➤'},
+  zap:    {c:'#f4f7ff', n:'Lightning', d:'chains through up to 30 enemies', g:'ϟ'},
+  seeker: {c:'#4d8bff', n:'Seekers',   d:'homing missiles hunt the swarm', g:'⌖'}
 };
 const TYPE_KEYS = Object.keys(TYPES);
 const ORB_N = 8, ORB_R = 34;
@@ -115,14 +118,14 @@ const COIN = '<span class="ci"></span>';
 const rand = (a,b) => a + Math.random()*(b-a);
 const clamp = (v,a,b) => v<a?a:v>b?b:v;
 
-let state = 'menu', p, enemies, pickups, parts, rings, bullets;
+let state = 'menu', p, enemies, pickups, parts, rings, bullets, zaps, missiles, blasterT = 0, fireT = 0;
 let T, score, combo, mult, lastKill, spawnT, pickT, orbitT, orbitA, shake, timeScale, deathT, clock = 0;
 
 function reset(){
   p = {x:W/2, y:H/2, vx:0, vy:0, a:-Math.PI/2, alive:true};
   enemies = []; pickups = []; parts = []; rings = []; bullets = [];
   T = 0; score = 0; combo = 0; mult = 1; lastKill = -9; spawnT = 1.8; pickT = 4;
-  orbitT = 0; orbitA = 0; shake = 0; timeScale = 1; deathT = 0; tiltBase = null;
+  orbitT = 0; orbitA = 0; blasterT = 0; fireT = 0; zaps = []; missiles = []; shake = 0; timeScale = 1; deathT = 0; tiltBase = null;
 }
 
 /* ---------- input ---------- */
@@ -195,7 +198,7 @@ function spawnWave(){
 function spawnPickup(){
   if (pickups.length >= 3) return;
   for (let k=0;k<20;k++){ const x = rand(40*U, W-40*U), y = rand(60*U, H-40*U);
-    if (Math.hypot(x-p.x,y-p.y) > 110*U){ pickups.push({x,y,type:TYPE_KEYS[Math.random()*4|0],life:12}); return; } }
+    if (Math.hypot(x-p.x,y-p.y) > 110*U){ pickups.push({x,y,type:TYPE_KEYS[Math.random()*TYPE_KEYS.length|0],life:12}); return; } }
 }
 
 /* ---------- effects ---------- */
@@ -209,7 +212,20 @@ function collect(k){
   else if (k.type==='orbit'){ orbitT += 8; }
   else if (k.type==='freeze'){ const F = Math.min(W,H)*0.5; rings.push({x:k.x,y:k.y,r:0,max:F,c:t.c,kill:false,spd:2.6});
     for (const e of enemies) if (Math.hypot(e.x-k.x,e.y-k.y) < F) { e.fz = 5; if (e.type === 'chase'){ e.vx = 0; e.vy = 0; } } }
-  else if (k.type==='spray'){ for (let i=0;i<30;i++){ const a = i/30*6.283; bullets.push({x:k.x,y:k.y,vx:Math.cos(a)*360*U,vy:Math.sin(a)*360*U,life:2.4,b:2}); } shake = 4; }
+  else if (k.type==='spray'){ for (let i=0;i<30;i++){ const a = i/30*6.283; bullets.push({x:k.x,y:k.y,vx:Math.cos(a)*360*U,vy:Math.sin(a)*360*U,life:2.4,b:2,c:'#c48bff',r:3}); } shake = 4; }
+  else if (k.type==='blaster'){ blasterT += 8; }
+  else if (k.type==='zap'){
+    let cx = k.x, cy = k.y; const pts = [[cx,cy]], hit = new Set();
+    for (let i=0;i<30;i++){
+      let bestE = null, bd = (i ? 210 : 340)*U;
+      for (const e of enemies){ if (e.dead || hit.has(e)) continue; const d = Math.hypot(e.x-cx,e.y-cy); if (d < bd){ bd = d; bestE = e; } }
+      if (!bestE) break;
+      hit.add(bestE); pts.push([bestE.x,bestE.y]); cx = bestE.x; cy = bestE.y; kill(bestE,'#f4f7ff');
+    }
+    zaps.push({pts, life:0.45}); shake = 6;
+  }
+  else if (k.type==='seeker'){ for (let i=0;i<8;i++){ const a = i/8*6.283;
+    missiles.push({x:k.x,y:k.y,vx:Math.cos(a)*200*U,vy:Math.sin(a)*200*U,life:4.5,hits:3,t:null}); } }
 }
 function die(){ p.alive = false; state = 'dying'; const sk = curSkin();
   burst(p.x,p.y,'#ffffff',50,260,2.6,1.2); burst(p.x,p.y,sk.col==='rainbow'?'#ff4fd8':sk.col,40,200,2.2,1.2); shake = 16; }
@@ -224,7 +240,7 @@ function update(dt, rdt){
   clock += rdt; T += dt;
   const er = 5*U, pr = 8*U, sk = curSkin();
   if (p.alive){
-    const v = inputVec(), ms = 235*U, k = Math.min(1, dt*11);
+    const v = inputVec(), ms = 290*U, k = Math.min(1, dt*11);
     p.vx += (v.x*ms - p.vx)*k; p.vy += (v.y*ms - p.vy)*k;
     p.x = clamp(p.x + p.vx*dt, pr, W-pr); p.y = clamp(p.y + p.vy*dt, pr, H-pr);
     const sp = Math.hypot(p.vx,p.vy);
@@ -267,8 +283,28 @@ function update(dt, rdt){
   for (const b of bullets){ b.x += b.vx*dt; b.y += b.vy*dt; b.life -= dt;
     if ((b.x<0 && b.vx<0)||(b.x>W && b.vx>0)){ if (b.b-- > 0) b.vx *= -1; else b.life = 0; }
     if ((b.y<0 && b.vy<0)||(b.y>H && b.vy>0)){ if (b.b-- > 0) b.vy *= -1; else b.life = 0; }
-    for (const e of enemies){ if (!e.dead && Math.hypot(e.x-b.x,e.y-b.y) < er+3*U){ kill(e,'#c48bff'); break; } } }
+    for (const e of enemies){ if (!e.dead && Math.hypot(e.x-b.x,e.y-b.y) < er+3*U){ kill(e,b.c); if (b.b === 0 && b.c === '#ff9f43') b.life = 0; break; } } }
   bullets = bullets.filter(b => b.life > 0);
+
+  if (blasterT > 0){ blasterT -= dt;
+    if (p.alive){ fireT -= dt;
+      while (fireT <= 0){ fireT += 0.075; const a = p.a + rand(-0.07,0.07);
+        bullets.push({x:p.x+Math.cos(p.a)*12*U, y:p.y+Math.sin(p.a)*12*U, vx:Math.cos(a)*560*U+p.vx*0.5, vy:Math.sin(a)*560*U+p.vy*0.5, life:1.3, b:0, c:'#ff9f43', r:2.6}); } } }
+
+  for (const m of missiles){
+    m.life -= dt;
+    if (!m.t || m.t.dead){ m.t = null; let bd = 1e9; for (const e of enemies){ if (e.dead) continue; const d = Math.hypot(e.x-m.x,e.y-m.y); if (d < bd){ bd = d; m.t = e; } } }
+    const sp = 330*U;
+    if (m.t){ const want = Math.atan2(m.t.y-m.y, m.t.x-m.x), cur = Math.atan2(m.vy,m.vx);
+      let d = want - cur; d = Math.atan2(Math.sin(d),Math.cos(d)); const na = cur + clamp(d,-7*dt,7*dt);
+      m.vx = Math.cos(na)*sp; m.vy = Math.sin(na)*sp; }
+    m.x += m.vx*dt; m.y += m.vy*dt;
+    if (Math.random() < 0.8) parts.push({x:m.x,y:m.y,vx:rand(-20,20)*U,vy:rand(-20,20)*U,life:0.3,max:0.3,c:'#4d8bff',s:1.8*U});
+    for (const e of enemies){ if (!e.dead && Math.hypot(e.x-m.x,e.y-m.y) < er+4*U){ kill(e,'#4d8bff'); if (--m.hits <= 0){ m.life = 0; burst(m.x,m.y,'#4d8bff',8,150,2,0.4); } break; } }
+  }
+  missiles = missiles.filter(m => m.life > 0);
+  for (const z of zaps) z.life -= rdt;
+  zaps = zaps.filter(z => z.life > 0);
 
   for (const k of pickups){ k.life -= dt; if (p.alive && Math.hypot(k.x-p.x,k.y-p.y) < pr+15*U){ k.life = -1; collect(k); } }
   pickups = pickups.filter(k => k.life > 0);
@@ -366,8 +402,21 @@ function draw(){
   ctx.fillStyle = '#bff8ff'; ctx.beginPath();
   for (const e of frozen) if (e.fz > 1.2 || Math.sin(clock*20) > 0) enemyPath(ctx,e.x,e.y,er,shape,e.ph); ctx.fill();
 
-  ctx.fillStyle = '#c48bff'; ctx.beginPath();
-  for (const b of bullets){ ctx.moveTo(b.x+3*U,b.y); ctx.arc(b.x,b.y,3*U,0,6.283); } ctx.fill();
+  for (const col of ['#c48bff','#ff9f43']){ ctx.fillStyle = col; ctx.beginPath();
+    for (const b of bullets) if (b.c === col){ ctx.moveTo(b.x+b.r*U,b.y); ctx.arc(b.x,b.y,b.r*U,0,6.283); } ctx.fill(); }
+
+  for (const m of missiles){ const a = Math.atan2(m.vy,m.vx);
+    ctx.save(); ctx.translate(m.x,m.y); ctx.rotate(a); ctx.fillStyle = 'rgba(77,139,255,0.25)'; ctx.beginPath(); ctx.arc(0,0,8*U,0,6.283); ctx.fill();
+    ctx.fillStyle = '#9cc0ff'; ctx.beginPath(); ctx.moveTo(7*U,0); ctx.lineTo(-5*U,4*U); ctx.lineTo(-3*U,0); ctx.lineTo(-5*U,-4*U); ctx.closePath(); ctx.fill(); ctx.restore(); }
+
+  for (const z of zaps){ const a = z.life/0.45;
+    for (const [w,al] of [[7*U,0.18],[2.2*U,0.95]]){ ctx.strokeStyle = `rgba(220,235,255,${al*a})`; ctx.lineWidth = w; ctx.lineJoin = 'round'; ctx.beginPath();
+      for (let i=0;i<z.pts.length;i++){ const [x,y] = z.pts[i];
+        if (i === 0){ ctx.moveTo(x,y); continue; }
+        const [px,py] = z.pts[i-1];
+        for (let s=1;s<=3;s++){ const t = s/4; ctx.lineTo(px+(x-px)*t+rand(-6,6)*U, py+(y-py)*t+rand(-6,6)*U); }
+        ctx.lineTo(x,y); }
+      ctx.stroke(); } }
 
   if (orbitT > 0 && p.alive){
     ctx.fillStyle = 'rgba(109,255,138,0.07)'; ctx.beginPath(); ctx.arc(p.x,p.y,(ORB_R+11)*U,0,6.283); ctx.fill();
@@ -394,7 +443,9 @@ function draw(){
     const sw = ctx.measureText(sc).width;
     if (mult > 1){ ctx.fillStyle = '#ffd84a'; ctx.font = '800 18px system-ui,sans-serif'; ctx.fillText('×'+mult, 24+sw, 44); }
     ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.font = '600 12px system-ui,sans-serif'; ctx.fillText('BEST ' + Math.max(save.best,score).toLocaleString('en-US'), 17, 62);
-    if (orbitT > 0){ ctx.fillStyle = 'rgba(109,255,138,0.25)'; ctx.fillRect(W-96,30,80,6); ctx.fillStyle = '#6dff8a'; ctx.fillRect(W-96,30,80*Math.min(1,orbitT/8),6); }
+    let by = 30;
+    if (orbitT > 0){ ctx.fillStyle = 'rgba(109,255,138,0.25)'; ctx.fillRect(W-96,by,80,6); ctx.fillStyle = '#6dff8a'; ctx.fillRect(W-96,by,80*Math.min(1,orbitT/8),6); by += 12; }
+    if (blasterT > 0){ ctx.fillStyle = 'rgba(255,159,67,0.25)'; ctx.fillRect(W-96,by,80,6); ctx.fillStyle = '#ff9f43'; ctx.fillRect(W-96,by,80*Math.min(1,blasterT/8),6); }
   }
 }
 
