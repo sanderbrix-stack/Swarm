@@ -20,11 +20,13 @@ Filerne i mappen:
 
 3) Tilt-styring
    - Første gang du trykker "Play", spørger iPhone om adgang til bevægelse. Tryk "Tillad"
-   - Hold telefonen i den vinkel du vil spille i, når du trykker Play – den vinkel bliver "lige ud"
+   - Under "Settings" vælger du hvilken vinkel der er udgangspunktet (står stille).
+     "Automatic" bruger den vinkel du holder telefonen i, når du trykker Play
+   - Spillet åbner på langs (landscape), når det er installeret som app
 
 4) Opdatering senere
    - Upload den nye index.html til GitHub (overskriv den gamle)
-   - Ret 'swarm-v1' til 'swarm-v2' i sw.js og upload den også
+   - Ret versionen i sw.js (fx 'swarm-v2' til 'swarm-v3') og upload den også
    - Luk og åbn appen et par gange, så henter den den nye version
 
 Bemærk: mønter, køb og rekord gemmes på telefonen. Sletter du appen eller Safaris
